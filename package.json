@@ -1,0 +1,31 @@
+{
+  "name": "assistant",
+  "version": "1.0.0",
+  "author": "Thomas Hermine",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "nodemon --exec node --loader @esbuild-kit/esm-loader -r @esbuild-kit/cjs-loader  src/index.ts",
+    "d": "yarn dev",
+    "start": "node --loader @esbuild-kit/esm-loader -r @esbuild-kit/cjs-loader src/index.ts",
+    "lint": "eslint src --max-warnings=0",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@esbuild-kit/esm-loader": "^2.6.5",
+    "@types/jest": "^29.5.6",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "eslint": "^8.51.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@esbuild-kit/cjs-loader": "^2.4.4",
+    "dotenv": "^16.3.1",
+    "homeassistant": "^0.2.0",
+    "openai": "^4.12.4"
+  }
+}
