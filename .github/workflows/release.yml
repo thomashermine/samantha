@@ -1,0 +1,43 @@
+---
+name: Release
+
+# This workflow runs when a push is made on /develop or /master, or manually trought the web UI.
+# It will build and push the Docker image to the GitHub Docker Registry.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/assistant
+
+jobs:
+  build_push:
+    name: 🚀 Build & Push
+    runs-on: ubuntu-latest
+    steps:
+
+      # Setup
+      # ============================================================================================
+      - name: ⚙️  Setup — QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: ⚙️  Setup — Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: ⚙️  Setup — GitHub Docker Registry Login
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build
+      # ============================================================================================
+      - name: ⚒️ Build & Push Engine Image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}, ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
