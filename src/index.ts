@@ -1,9 +1,18 @@
 import 'dotenv/config';
+import {init}  from './init';
+import {log} from './_helpers/logs';
+
 
 async function main() {
-  console.log("Hello, world!");
-  console.log('Here are your environnment variables:');
-  console.log(process.env);
+
+  // Init
+  // ===================================================================================================================
+  log('app','info','Starting up...');
+  log('app','info','Here are your environment variables:');
+  log('app','info',process.env);
+
+  const {ha, openai } = await init();
+  log('app','info','Initialized.');
 }
 
 main();
