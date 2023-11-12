@@ -6,7 +6,7 @@ export const {
 const DEFAULT_HOME_ASSISTANT_HOST = (NODE_ENV === 'production') ? 'http://supervisor/core' : 'http://homeassistant.local';
 const DEFAULT_HOME_ASSISTANT_PORT = (NODE_ENV === 'production') ? 80 : 8123;
 const DEFAULT_HOME_ASSISTANT_TOKEN = process.env.SUPERVISOR_TOKEN;
-const DEFAULT_UPDATE_INTERVAL = (NODE_ENV === 'production') ? 1000*60*60 : 5000; // Every hour in production, every 5 seconds in dev
+const DEFAULT_UPDATE_INTERVAL = (NODE_ENV === 'production') ? 1000*60*60 : 10000; // Every hour in production, every 5 seconds in dev
 
 // =====================================================================================================================
 // Config
@@ -28,4 +28,5 @@ export const {
 } = process.env;
 
 export const SUMMARY_DEVICE_ENTITY_PREFIX = 'summary_device_'; // will be followed by the device name
-export const SUMMARY_DEVICES_ENTITIES = ['hall_tablet','iphone_thomas','iphone_caroline','macbookpro_thomas','roborock','octoprint','litterbox','toothbrush'];
+export const SUMMARY_DEVICES_ENTITIES = ['hall_tablet','iphone_thomas','iphone_caroline','macbookpro_thomas','roborock','octoprint','litterbox','toothbrush','pet_feeder','pet_fountain'];
+//export const SUMMARY_DEVICES_ENTITIES = ['roborock'];

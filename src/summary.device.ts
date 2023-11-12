@@ -17,14 +17,16 @@ export function getPromptForDeviceSummary(states, deviceName, paramOptions) {
     if(!states || states.length === 0) {
         throw new Error('States must be an array');
     }
-    const deviceEntities = states.filter(el => el.entity_id.includes(deviceName));
+    const deviceEntities = states
+    .filter(el => el.entity_id.includes(deviceName))
+    .filter(el => !el.entity_id.includes(SUMMARY_DEVICE_ENTITY_PREFIX)); // Ignoring ourselves
     if(deviceEntities.length === 0) {
         log('app','warn',`No entity found for device ${deviceName}`);
         return null;
     }
     const summary = summarizeEntities(deviceEntities);
     const defaultOptions = {
-        length: 200,
+        length: 100,
         customPrompt: '',    
     }
     const options = {
@@ -34,14 +36,19 @@ export function getPromptForDeviceSummary(states, deviceName, paramOptions) {
 
     let prompt = [];
     const briefing = `
-    Following is an overview of the state of a device.
-    Summarize it in less than ${options.length} characters.
-    Do not start nor include the name of the device. Do not start by "summary" or "briefing" or "device".
-    Only keep the most important information, do not give everything you have. ALWAYS keep it short. 
-    Prioritize errors, last state changes, and then only the rest.
-    Write a single sentence, as if your were  do not use bullets point, separator, line breaks.
-    Ignore device containing "summary" or "briefing" or "device" in their name.
+    BRIEFING : 
+    Following is an overview of the state of a device. 
+    You must filter out the noise and respond with a single sentence, no bullets points summary of maximum ${options.length} characters. 
+    Keep the summary short no matter the amount of data you are given.
+    Only keep errors, warnings, statuses, entities called "Dock Status" and other important information.
+    Dont write "error" or "warning" if you dont see any.
+    Do not introduce with "Summary" or "Résumé", just the content itself.
+    Round float value to integer. Transform any duration in seconds to minutes.
+    Ignore any "unknown" or "unavailable" state.
     ${options.customPrompt}
+    CONTEXT :
+    For relative date calculation, today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}.
+    DATA : 
     `;
     prompt.push(briefing);
     prompt = [...prompt, ...summary];
@@ -62,6 +69,7 @@ export function getPromptForDeviceSummary(states, deviceName, paramOptions) {
 export async function getDeviceSummary(openai, ha, states, deviceName, paramOptions) {
     const prompt = getPromptForDeviceSummary(states, deviceName, paramOptions);
     if(!prompt) {
+        log('app','warn',`No prompt found for device ${deviceName}`);
         return null;
     }
     const summary = getFirstChatResponse(openai, prompt);
@@ -82,6 +90,7 @@ export async function getDeviceSummary(openai, ha, states, deviceName, paramOpti
 export async function updateDeviceSummary(openai, ha, states, deviceName, paramOptions) {
     const summary = await getDeviceSummary(openai, ha, states, deviceName, paramOptions);
     if(!summary) {
+        log('app','warn',`No summary found for device ${deviceName}`);
         return null;
     }
     return ha.states.update('sensor', `${SUMMARY_DEVICE_ENTITY_PREFIX}${deviceName}`, {

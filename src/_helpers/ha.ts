@@ -56,7 +56,7 @@ export function addDomainToEntities(states) {
 export function summarizeEntities(states) {
     return states.map(el => {
         const attributes = Object.keys(el.attributes).map(key => { return `${key}: ${el.attributes[key]}`});
-        return `${el.entity_id}: ${el.state} (${attributes.join(', ')})`;
+        return `${el.attributes.friendly_name} — (id: ${el.entity_id}): ${el.state} (${attributes.join(', ')})`;
     });
 }
 
