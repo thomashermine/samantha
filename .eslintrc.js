@@ -1,59 +1,33 @@
 module.exports = {
-    root: true,
-    ignorePatterns: [],
-    settings: {
-      'import/resolver': {
-        node: {
-          extensions: ['.js', '.jsx', '.ts', '.tsx', 'd.ts'],
-        },
-      },
+    "env": {
+        "browser": true,
+        "es2021": true
     },
-    env: {
-      node: true,
-    },
-    extends: [
-      'airbnb-base',
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
     ],
-    parser: '@typescript-eslint/parser',
-    parserOptions: {
-      ecmaVersion: 12,
-      sourceType: 'module',
-    },
-    plugins: [
-      '@typescript-eslint',
-      'extra-rules',
+    "overrides": [
+        {
+            "env": {
+                "node": true
+            },
+            "files": [
+                ".eslintrc.{js,cjs}"
+            ],
+            "parserOptions": {
+                "sourceType": "script"
+            }
+        }
     ],
-    rules: {
-      // Following are rules we added to the airbnb-base ruleset.
-      'extra-rules/no-commented-out-code': 'warn',
-    
-      // Following are rules we explicitly don't want to follow.
-      'no-console': 'off', // Logging is a good practice.
-      'import/extensions': ['error', 'always', { // Never allow .js .ts in imports. Make transition from .js to .ts easier.
-          js: 'never',
-          ts: 'never',
-        }],
-      'no-restricted-imports': ['error', {
-        name: 'pg',
-        importNames: ['Pool'],
-        message: 'Use Pool from src/utils/db instead.',
-      }],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module"
     },
-    overrides: [
-      {
-        files: ['./src/**/*.test.js'],
-        globals: {
-          jest: true,
-          it: true,
-          fit: true,
-          describe: true,
-          afterAll: true,
-          beforeAll: true,
-          afterEach: true,
-          expect: true,
-          fail: true,
-        },
-      },
+    "plugins": [
+        "@typescript-eslint"
     ],
-  };
-  
+    "rules": {
+    }
+}
