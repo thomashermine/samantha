@@ -54,17 +54,7 @@ export const toolFunctionWrapper =
     });
   };
 
-/**
- * Launches a conversation with the specified assistant.
- * Will never resolve and keep the conversation going forever.
- *
- * @param {string} assitantName - The name of the assistant to converse with.
- * @throws {Error} If the OpenAI client is not initialized.
- * @throws {Error} If the assistant name is not provided.
- * @throws {Error} If the assistant is not found.
- 
- */
-export async function launchAssistantConversation(assitantName: string) {
+export async function createAssistantThread(assitantName: string) {
   if (!openai) throw new Error("OpenAI client not initialized.");
   if (!assitantName) throw new Error("Assistant name is required.");
   if (!idByAssistantName[assitantName])
@@ -83,6 +73,119 @@ export async function launchAssistantConversation(assitantName: string) {
   );
   const thread = await openai.beta.threads.create();
   log("openai", "debug", `Created thread ${thread.id}`);
+  return { threadId: thread.id, assistantId, instructions };
+}
+
+export async function handleUserMessageOnThread(
+  assistantId,
+  threadId,
+  message,
+  instructions,
+) {
+  // Ask for User Message
+  // =================================================================================================================
+  await openai.beta.threads.messages.create(threadId, {
+    role: "user",
+    content: message,
+  });
+
+  // Run the Assistant
+  // =================================================================================================================
+  let run = await openai.beta.threads.runs.create(threadId, {
+    assistant_id: assistantId,
+    instructions,
+  });
+
+  // Wait for Run Completion
+  // =================================================================================================================
+  let hasCompleted = false;
+  while (!hasCompleted) {
+    const runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+    const { status } = runStatus;
+
+    // Requires Action
+    // ===============================================================================================================
+    if (status === "requires_action") {
+      const requiredActions = runStatus.required_action;
+
+      // Actions is of type "submit_tool_outputs"
+      // =============================================================================================================
+      // The Assistant want us to run some code
+      if (
+        requiredActions.type === "submit_tool_outputs" &&
+        requiredActions.submit_tool_outputs
+      ) {
+        // Each Tool Call
+        // ===========================================================================================================
+        const toolPromises = requiredActions.submit_tool_outputs.tool_calls.map(
+          (tool_call) => {
+            const toolFunction = functionsForAssistant[tool_call.function.name];
+            if (!toolFunction)
+              throw new Error(`Function ${tool_call.function.name} not found.`);
+            const functionOptions = JSON.parse(tool_call.function.arguments);
+            return toolFunctionWrapper(
+              toolFunction,
+              tool_call.id,
+            )(functionOptions);
+          },
+        );
+        const toolOuputs = await Promise.all(toolPromises);
+        log(
+          "openai",
+          "debug",
+          `${toolOuputs.length} functions tools ran and will be submitted.`,
+        );
+
+        // Submit Tool Call Results
+        run = await openai.beta.threads.runs.submitToolOutputs(
+          threadId,
+          run.id,
+          {
+            tool_outputs: toolOuputs,
+          },
+        );
+      }
+      hasCompleted = false;
+      // Run Completed
+      // =============================================================================================================
+    } else if (status === "completed") {
+      console.log("completed");
+      hasCompleted = true;
+    } else {
+      // Waiting for Completion
+      // =============================================================================================================
+      logLoading(status);
+      await sleep(2000);
+    }
+  }
+
+  // Thread Completed
+  // =================================================================================================================
+  const threadMessages = await openai.beta.threads.messages.list(threadId);
+
+  // Log the last message of the chat
+  const response = threadMessages.data[0];
+  if (response.content[0].text.value) {
+    console.log(response.content[0].text.value);
+    return response.content[0].text.value;
+  } else {
+    console.log(response);
+  }
+}
+
+/**
+ * Launches a conversation with the specified assistant.
+ * Will never resolve and keep the conversation going forever.
+ *
+ * @param {string} assitantName - The name of the assistant to converse with.
+ * @throws {Error} If the OpenAI client is not initialized.
+ * @throws {Error} If the assistant name is not provided.
+ * @throws {Error} If the assistant is not found.
+ 
+ */
+export async function launchAssistantConversation(assitantName: string) {
+  const { threadId, assistantId, instructions } =
+    await createAssistantThread(assitantName);
 
   // Message Loop
   // ===================================================================================================================
@@ -90,97 +193,16 @@ export async function launchAssistantConversation(assitantName: string) {
   while (true) {
     // Ask for User Message
     // =================================================================================================================
-    const messageInput = await prompt.get(["message"]);
-    await openai.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: messageInput.message,
-    });
+    prompt.start();
+    const { message } = await prompt.get(["message"]);
 
-    // Run the Assistant
+    // Handle User Message
     // =================================================================================================================
-    let run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId,
+    await handleUserMessageOnThread(
+      assistantId,
+      threadId,
+      message,
       instructions,
-    });
-
-    // Wait for Run Completion
-    // =================================================================================================================
-    let hasCompleted = false;
-    while (!hasCompleted) {
-      const runStatus = await openai.beta.threads.runs.retrieve(
-        thread.id,
-        run.id,
-      );
-      const { status } = runStatus;
-
-      // Requires Action
-      // ===============================================================================================================
-      if (status === "requires_action") {
-        const requiredActions = runStatus.required_action;
-
-        // Actions is of type "submit_tool_outputs"
-        // =============================================================================================================
-        // The Assistant want us to run some code
-        if (
-          requiredActions.type === "submit_tool_outputs" &&
-          requiredActions.submit_tool_outputs
-        ) {
-          // Each Tool Call
-          // ===========================================================================================================
-          const toolPromises =
-            requiredActions.submit_tool_outputs.tool_calls.map((tool_call) => {
-              const toolFunction =
-                functionsForAssistant[tool_call.function.name];
-              if (!toolFunction)
-                throw new Error(
-                  `Function ${tool_call.function.name} not found.`,
-                );
-              const functionOptions = JSON.parse(tool_call.function.arguments);
-              return toolFunctionWrapper(
-                toolFunction,
-                tool_call.id,
-              )(functionOptions);
-            });
-          const toolOuputs = await Promise.all(toolPromises);
-          log(
-            "openai",
-            "debug",
-            `${toolOuputs.length} functions tools ran and will be submitted.`,
-          );
-
-          // Submit Tool Call Results
-          run = await openai.beta.threads.runs.submitToolOutputs(
-            thread.id,
-            run.id,
-            {
-              tool_outputs: toolOuputs,
-            },
-          );
-        }
-        hasCompleted = false;
-        // Run Completed
-        // =============================================================================================================
-      } else if (status === "completed") {
-        console.log("completed");
-        hasCompleted = true;
-      } else {
-        // Waiting for Completion
-        // =============================================================================================================
-        logLoading(status);
-        await sleep(2000);
-      }
-    }
-
-    // Thread Completed
-    // =================================================================================================================
-    const threadMessages = await openai.beta.threads.messages.list(thread.id);
-
-    // Log the last message of the chat
-    const response = threadMessages.data[0];
-    if (response.content[0].text.value) {
-      console.log(response.content[0].text.value);
-    } else {
-      console.log(response);
-    }
+    );
   }
 }

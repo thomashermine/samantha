@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import bodyParser from "body-parser";
 import homeassistant from "homeassistant";
 import OpenAI from "openai";
 import prompt from "prompt";
@@ -36,7 +37,6 @@ export async function init(): Promise<{
 }> {
   // Home Assistant
   // ===================================================================================================================
-  console.log(HOME_ASSISTANT_HOST, HOME_ASSISTANT_PORT, HOME_ASSISTANT_TOKEN);
   const ha: homeassistant = new homeassistant({
     host: HOME_ASSISTANT_HOST,
     port: HOME_ASSISTANT_PORT,
@@ -57,12 +57,12 @@ export async function init(): Promise<{
   // Express Server
   // ===================================================================================================================
   const server = express();
+  server.use(bodyParser());
 
   // Register routes
   googleHandleAuthCallback(server);
 
-  // Express Server
-  // ===================================================================================================================
+  // Listen
   server.listen(PORT, (err) => {
     if (err) throw err;
     log("server", "info", `Listening on port ${PORT}`);
@@ -73,10 +73,6 @@ export async function init(): Promise<{
   // Express needs to be initialized before this, so we are ready to handle the callback
   const google = await googleAuthorize();
   googleSetClient(google);
-
-  // Prompt
-  // ===================================================================================================================
-  prompt.start();
 
   return { ha, openai, google, server, prompt };
 }

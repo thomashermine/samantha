@@ -1,32 +1,41 @@
 import "dotenv/config";
-
 import { log } from "./_helpers/logs";
-import { sleep } from "./_helpers/sleep";
 import { init } from "./init";
-import { summariesJob } from "./_helpers/summaries/job";
-import { HOME_ASSISTANT_SUMMARIES_UPDATE_INTERVAL } from "./config";
 
-import { launchAssistantConversation } from "./openai/assistant";
+import {
+  createAssistantThread,
+  handleUserMessageOnThread,
+} from "./openai/assistant";
 
 async function main() {
   // Init
   // ===================================================================================================================
   log("app", "info", "Starting up...");
-  const { ha, openai } = await init();
+  const { server } = await init();
   log("app", "info", "Initialized.");
 
   // Start the OpenAI Assistant Conversation
   // ===================================================================================================================
-  await launchAssistantConversation("agenda");
+  const { threadId, assistantId, instructions } =
+    await createAssistantThread("agenda");
 
-  // Jobs
-  // ===================================================================================================================
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    // TODO: Use a pub-sub model instead to update everytime one of the entities we summarize is updated
-    await summariesJob(ha, openai);
-    await sleep(HOME_ASSISTANT_SUMMARIES_UPDATE_INTERVAL);
-  }
+  server.post("/assistant/agenda/message", async (req, res) => {
+    console.log("req.body", req.body);
+    const { message } = req.body;
+    log("app", "debug", `Received message ${message}`);
+    const response = await handleUserMessageOnThread(
+      assistantId,
+      threadId,
+      message,
+      instructions,
+    );
+    res.status(201).json({ message: response });
+  });
+  log(
+    "app",
+    "info",
+    "Ready to make conversation with assistant. Send a POST request to /assistant/agenda/message with a message in the body to start the conversation.",
+  );
 }
 
 main();
